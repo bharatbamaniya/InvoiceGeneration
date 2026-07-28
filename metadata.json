@@ -1,0 +1,8 @@
+{
+  "name": "Quick Bill",
+  "description": "Lightweight tool for grocery stores to quickly generate, export, and share customer invoices via PDF and WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
