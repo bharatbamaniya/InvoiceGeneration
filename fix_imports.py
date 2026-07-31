@@ -1,21 +1,25 @@
 import re
 
-def fix_file(filename):
-    with open(filename, 'r') as f:
-        content = f.read()
-    
-    # Remove all ExposedDropdownMenuBox, DropdownMenuItem, ExposedDropdownMenuDefaults, ExperimentalMaterial3Api imports
-    content = re.sub(r'import androidx\.compose\.material3\.ExposedDropdownMenuBox\n?', '', content)
-    content = re.sub(r'import androidx\.compose\.material3\.DropdownMenuItem\n?', '', content)
-    content = re.sub(r'import androidx\.compose\.material3\.ExposedDropdownMenuDefaults\n?', '', content)
-    content = re.sub(r'import androidx\.compose\.material3\.ExperimentalMaterial3Api\n?', '', content)
-    
-    # Put them exactly once
-    content = content.replace('import androidx.compose.material3.Text', 'import androidx.compose.material3.ExposedDropdownMenuBox\nimport androidx.compose.material3.DropdownMenuItem\nimport androidx.compose.material3.ExposedDropdownMenuDefaults\nimport androidx.compose.material3.ExperimentalMaterial3Api\nimport androidx.compose.material3.Text')
-    
-    with open(filename, 'w') as f:
-        f.write(content)
+with open('app/src/main/java/com/example/ui/screens/ManageItemsScreen.kt', 'r') as f:
+    text = f.read()
 
-fix_file('app/src/main/java/com/example/ui/components/AddCustomItemDialog.kt')
-fix_file('app/src/main/java/com/example/ui/screens/ManageItemsScreen.kt')
+imports = """import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.clickable
+"""
+
+text = text.replace("import androidx.compose.ui.Modifier", "import androidx.compose.ui.Modifier\n" + imports)
+
+with open('app/src/main/java/com/example/ui/screens/ManageItemsScreen.kt', 'w') as f:
+    f.write(text)
+
+with open('app/src/main/java/com/example/ui/screens/CheckoutScreen.kt', 'r') as f:
+    text2 = f.read()
+    
+text2 = text2.replace("import androidx.compose.ui.Modifier", "import androidx.compose.ui.Modifier\n" + imports)
+
+with open('app/src/main/java/com/example/ui/screens/CheckoutScreen.kt', 'w') as f:
+    f.write(text2)
 

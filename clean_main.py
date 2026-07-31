@@ -1,14 +1,15 @@
-import re
-
 with open('app/src/main/java/com/example/MainActivity.kt', 'r') as f:
-    content = f.read()
+    code = f.read()
 
-# Remove the arguments from CheckoutScreen invocation in MainActivity
-content = content.replace("                        onUpdateCustomerName = viewModel::updateCustomerName,\n", "")
-content = content.replace("                        onUpdateCustomerPhone = viewModel::updateCustomerPhone,\n", "")
-content = content.replace("                        onUpdateStoreSettings = { name, address, phone, owner, symbol -> viewModel.updateStoreSettings(name, address, phone, owner, symbol, uiState.swipeToDeleteEnabled) },\n", "")
-content = content.replace("                        onOpenHistory = {\n                            currentScreen = AppScreen.INVOICE_HISTORY\n                        },\n", "")
+# The first floating bottom bar block starts after `GroceryInvoiceApp()\n                }\n            }`
+# Let's remove it entirely up to `    }\n}\n\nenum class AppScreen` or `enum class`
+
+start_idx = code.find('            // Floating Bottom Bar Overlay', 0, code.find('enum class AppScreen'))
+if start_idx != -1:
+    end_idx = code.find('        }\n    }\n}\n\nenum class AppScreen')
+    if end_idx != -1:
+        code = code[:start_idx] + code[end_idx:]
 
 with open('app/src/main/java/com/example/MainActivity.kt', 'w') as f:
-    f.write(content)
+    f.write(code)
 

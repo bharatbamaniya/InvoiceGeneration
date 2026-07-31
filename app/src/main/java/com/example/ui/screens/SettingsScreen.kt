@@ -1,9 +1,13 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -11,6 +15,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.viewmodel.InvoiceUiState
+import androidx.compose.ui.res.stringResource
+import com.example.R
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -20,120 +33,175 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     onBack: () -> Unit
 ) {
-    var storeName by remember { mutableStateOf(state.storeName) }
-    var storeAddress by remember { mutableStateOf(state.storeAddress) }
-    var storePhone by remember { mutableStateOf(state.storePhone) }
-    var ownerName by remember { mutableStateOf(state.ownerName) }
-    
+    var storeName by remember { mutableStateOf(state.storeName.ifBlank { "Quick Bill HQ" }) }
+    var storeAddress by remember { mutableStateOf(state.storeAddress.ifBlank { "123 Design System Blvd, Suite 404, San Francisco, CA" }) }
+    var storePhone by remember { mutableStateOf(state.storePhone.ifBlank { "+1 (555) 123-4567" }) }
+    var ownerName by remember { mutableStateOf(state.ownerName.ifBlank { "Jane Doe" }) }
     var swipeToDeleteEnabled by remember { mutableStateOf(state.swipeToDeleteEnabled) }
+    
+    var editingField by remember { mutableStateOf<String?>(null) }
+    var editValue by remember { mutableStateOf("") }
+    
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text("Settings", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                )
             )
         }
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                .padding(padding),
+            contentPadding = PaddingValues(bottom = 32.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Account", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                
-                OutlinedTextField(
-                    value = state.storeUid,
-                    onValueChange = {},
-                    label = { Text("Store Code (Share this to sync with other devices)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    readOnly = true
+            
+            item {
+                SectionHeader("Account")
+                SettingsItem(
+                    title = "Store Code",
+                    subtitle = state.storeUid,
+                    trailingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = "Copy") },
+                    onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("Store Code", state.storeUid)
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(context, "Store Code copied to clipboard", Toast.LENGTH_SHORT).show()
+                    }
                 )
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
                 
-                Button(
-                    onClick = onLogout,
-                    modifier = Modifier.align(Alignment.End),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Logout")
-                }
+                ListItem(
+                    headlineContent = { Text("Logout", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error) },
+                    leadingContent = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = MaterialTheme.colorScheme.error) },
+                    modifier = Modifier.clickable { onLogout() },
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background)
+                )
             }
             
-            Divider()
-            
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Store Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                SectionHeader("Store Settings")
                 
-                OutlinedTextField(
-                    value = storeName,
-                    onValueChange = { storeName = it },
-                    label = { Text("Store Name") },
-                    modifier = Modifier.fillMaxWidth()
+                SettingsItem(
+                    title = "Store Name",
+                    subtitle = storeName,
+                    trailingIcon = { Icon(Icons.Default.Edit, contentDescription = "Edit") },
+                    onClick = { editingField = "Store Name"; editValue = storeName }
                 )
-                OutlinedTextField(
-                    value = storeAddress,
-                    onValueChange = { storeAddress = it },
-                    label = { Text("Store Address") },
-                    modifier = Modifier.fillMaxWidth()
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
+                
+                SettingsItem(
+                    title = "Address",
+                    subtitle = storeAddress,
+                    trailingIcon = { Icon(Icons.Default.Edit, contentDescription = "Edit") },
+                    onClick = { editingField = "Address"; editValue = storeAddress }
                 )
-                OutlinedTextField(
-                    value = storePhone,
-                    onValueChange = { storePhone = it },
-                    label = { Text("Store Phone") },
-                    modifier = Modifier.fillMaxWidth()
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
+                
+                SettingsItem(
+                    title = "Phone",
+                    subtitle = storePhone,
+                    trailingIcon = { Icon(Icons.Default.Edit, contentDescription = "Edit") },
+                    onClick = { editingField = "Phone"; editValue = storePhone }
                 )
-                OutlinedTextField(
-                    value = ownerName,
-                    onValueChange = { ownerName = it },
-                    label = { Text("Owner Name") },
-                    modifier = Modifier.fillMaxWidth()
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
+                
+                SettingsItem(
+                    title = "Owner Name",
+                    subtitle = ownerName,
+                    trailingIcon = { Icon(Icons.Default.Edit, contentDescription = "Edit") },
+                    onClick = { editingField = "Owner Name"; editValue = ownerName }
                 )
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
+            }
+            
 
-                
-                Button(
-                    onClick = { onUpdateStoreSettings(storeName, storeAddress, storePhone, ownerName, swipeToDeleteEnabled) },
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Save Store Settings")
-                }
-            }
             
-            Divider()
-            
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Actions Group", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                
-                Row(
+            item {
+                Spacer(modifier = Modifier.height(48.dp))
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("Enable Swipe to Delete (Invoices/Customers)")
-                    Switch(
-                        checked = swipeToDeleteEnabled,
-                        onCheckedChange = { swipeToDeleteEnabled = it }
-                    )
+                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("v1.0.4", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            }
-            
-            Spacer(modifier = Modifier.weight(1f))
-            
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("App Name: Quick Bill", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Version: 1.0.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        
+        if (editingField != null) {
+            AlertDialog(
+                onDismissRequest = { editingField = null },
+                title = { Text("Edit $editingField") },
+                text = {
+                    OutlinedTextField(
+                        value = editValue,
+                        onValueChange = { editValue = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        )
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            when (editingField) {
+                                "Store Name" -> storeName = editValue
+                                "Address" -> storeAddress = editValue
+                                "Phone" -> storePhone = editValue
+                                "Owner Name" -> ownerName = editValue
+                            }
+                            onUpdateStoreSettings(storeName, storeAddress, storePhone, ownerName, swipeToDeleteEnabled)
+                            editingField = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { editingField = null }) {
+                        Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
     }
+}
+
+@Composable
+fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+    )
+}
+
+@Composable
+fun SettingsItem(title: String, subtitle: String, trailingIcon: @Composable () -> Unit, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(title, fontWeight = FontWeight.Bold) },
+        supportingContent = { Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+        trailingContent = trailingIcon,
+        modifier = Modifier.clickable { onClick() },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background)
+    )
 }

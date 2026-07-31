@@ -1,32 +1,19 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.model.Invoice
@@ -38,103 +25,123 @@ import java.util.Locale
 @Composable
 fun InvoiceHistoryScreen(
     invoices: List<Invoice>,
-    onSelectInvoice: (Invoice) -> Unit,
-    onEditInvoice: (Invoice) -> Unit,
+    currencySymbol: String,
+    onInvoiceClick: (Invoice) -> Unit,
     onBack: () -> Unit
 ) {
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearchActive by remember { mutableStateOf(false) }
+    val filteredInvoices = if (searchQuery.isEmpty()) invoices else invoices.filter { it.customerName.contains(searchQuery, ignoreCase = true) || it.invoiceId.toString().contains(searchQuery) }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Recent Invoices History") },
+            CenterAlignedTopAppBar(
+                title = { 
+                    if (isSearchActive) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text("Search invoices...") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().height(50.dp)
+                        )
+                    } else {
+                        Text("Invoice History", fontWeight = FontWeight.Bold) 
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { isSearchActive = !isSearchActive; if (!isSearchActive) searchQuery = "" }) {
+                        Icon(Icons.Default.Search, contentDescription = "Search")
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                )
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (filteredInvoices.isEmpty()) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        Text("No invoices found.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            } else {
+                items(filteredInvoices.sortedByDescending { it.dateMillis }) { invoice ->
+                    InvoiceHistoryItem(invoice, currencySymbol, onInvoiceClick)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun InvoiceHistoryItem(invoice: Invoice, currencySymbol: String, onClick: (Invoice) -> Unit) {
+    val dateFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
+    val dateString = dateFormat.format(Date(invoice.dateMillis))
+    
+    val isPaid = invoice.totalBalance <= 0.0
+
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable { onClick(invoice) },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("#${invoice.invoiceId}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        color = if (isPaid) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.error,
+                        shape = RoundedCornerShape(percent = 50)
+                    ) {
+                        Text(
+                            text = if (isPaid) "PAID" else "UNPAID",
+                            color = if (isPaid) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onError,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                         )
                     }
                 }
-            )
-        }
-    ) { innerPadding ->
-        if (invoices.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.Receipt,
-                        contentDescription = null,
-                        modifier = Modifier.padding(bottom = 8.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text("No past invoices generated yet.")
-                }
+                Text(
+                    text = "$currencySymbol${String.format(Locale.US, "%.2f", invoice.billAmount)}",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                items(invoices) { invoice ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("history_item_${invoice.invoiceId}")
-                            .clickable { onSelectInvoice(invoice) },
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "Invoice #${invoice.invoiceId}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = "Customer: ${invoice.customerName}",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                val dateFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
-                                Text(
-                                    text = dateFormat.format(Date(invoice.dateMillis)),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    text = String.format(Locale.US, "%s%.2f", invoice.currencySymbol, invoice.totalBalance),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "${if(invoice.totalItemCount % 1.0 == 0.0) invoice.totalItemCount.toInt() else invoice.totalItemCount} items",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                IconButton(onClick = { onEditInvoice(invoice) }) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Edit Invoice", tint = MaterialTheme.colorScheme.primary)
-                                }
-                            }
-                        }
-                    }
-                }
+                Text(dateString, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Text(invoice.customerName, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground)
         }
     }
 }

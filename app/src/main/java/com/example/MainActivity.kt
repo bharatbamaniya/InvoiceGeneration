@@ -1,11 +1,24 @@
 package com.example
 
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.CardDefaults
+
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
@@ -78,7 +91,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 @Composable
 fun GroceryInvoiceApp() {
     val context = LocalContext.current
@@ -109,36 +121,20 @@ fun GroceryInvoiceApp() {
     }
 
     Scaffold(
-        bottomBar = {
-            if (currentScreen in listOf(AppScreen.HOME, AppScreen.CUSTOMERS)) {
-                NavigationBar {
-                    NavigationBarItem(
-                        selected = currentScreen == AppScreen.HOME,
-                        onClick = { currentScreen = AppScreen.HOME },
-                        icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                        label = { Text("Home") }
-                    )
-                    NavigationBarItem(
-                        selected = currentScreen == AppScreen.CUSTOMERS,
-                        onClick = { currentScreen = AppScreen.CUSTOMERS },
-                        icon = { Icon(Icons.Default.Person, contentDescription = "Customers") },
-                        label = { Text("Customers") }
-                    )
-                }
-            }
-        }
+        // Bottom bar removed from scaffold to float freely
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
             when (currentScreen) {
                 AppScreen.HOME -> {
                     HomeScreen(
                         state = uiState,
+                        onSyncClick = { viewModel.syncData() },
                         onSettingsClick = { currentScreen = AppScreen.SETTINGS },
                         onNewInvoice = {
                             viewModel.clearCart()
                             currentScreen = AppScreen.CUSTOMERS 
                         },
-                        onViewInvoices = { currentScreen = AppScreen.INVOICE_HISTORY }
+                        onViewInvoices = { currentScreen = AppScreen.INVOICE_HISTORY }, onManageItems = { currentScreen = AppScreen.MANAGE_ITEMS }
                     )
                 }
                 AppScreen.SETTINGS -> {
@@ -166,19 +162,16 @@ fun GroceryInvoiceApp() {
                     if (customer != null) {
                         CustomerDetailScreen(
                             customer = customer,
-                            invoices = uiState.invoiceHistory.filter { it.customerId == customer.id },
-                            payments = uiState.payments.filter { it.customerId == customer.id },
+                            invoices = uiState.invoiceHistory.filter { it.customerId == customer.id }, payments = uiState.payments.filter { it.customerId == customer.id },
+                            
                             currencySymbol = uiState.currencySymbol,
                             onBack = { currentScreen = AppScreen.CUSTOMERS },
                             onNewInvoice = { 
                                 viewModel.clearCart()
                                 currentScreen = AppScreen.CHECKOUT 
                             },
-                            onSettleBalance = { amount, remark -> viewModel.settleCustomerBalance(customer.id, amount, remark) },
-                            onViewInvoice = { invoice ->
-                                selectedInvoiceForView = invoice
-                                currentScreen = AppScreen.INVOICE_DETAIL
-                            }
+                            onSettleBalance = { cust, amount -> viewModel.settleCustomerBalance(cust.id, amount, "Settled from detail") },
+                            
                         )
                     } else {
                         currentScreen = AppScreen.CUSTOMERS
@@ -210,7 +203,8 @@ fun GroceryInvoiceApp() {
                         },
                         onManageItems = {
                             currentScreen = AppScreen.MANAGE_ITEMS
-                        }
+                        },
+                        onBack = { currentScreen = if (uiState.selectedCustomerId != null) AppScreen.CUSTOMER_DETAIL else AppScreen.CUSTOMERS }
                     )
                 }
                 AppScreen.INVOICE_DETAIL -> {
@@ -219,13 +213,12 @@ fun GroceryInvoiceApp() {
                         InvoiceDetailScreen(
                             invoice = activeInvoice,
                             onBackToCheckout = { currentScreen = if (uiState.selectedCustomerId != null) AppScreen.CUSTOMER_DETAIL else AppScreen.CHECKOUT },
-                            onNewSale = {
-                                val prevCustId = uiState.selectedCustomerId
-                                viewModel.resetInvoice()
-                                selectedInvoiceForView = null
-                                viewModel.selectCustomer(prevCustId)
-                                currentScreen = if (prevCustId != null) AppScreen.CUSTOMER_DETAIL else AppScreen.CHECKOUT
-                            },
+                            onHome = {
+viewModel.resetInvoice()
+selectedInvoiceForView = null
+currentScreen = AppScreen.HOME
+},
+
                             onEditInvoice = {
                                 viewModel.loadInvoiceForEditing(activeInvoice)
                                 selectedInvoiceForView = null
@@ -239,14 +232,12 @@ fun GroceryInvoiceApp() {
                 AppScreen.INVOICE_HISTORY -> {
                     InvoiceHistoryScreen(
                         invoices = uiState.invoiceHistory,
-                        onSelectInvoice = { invoice ->
+                        currencySymbol = uiState.currencySymbol,
+onInvoiceClick = { invoice ->
                             selectedInvoiceForView = invoice
                             currentScreen = AppScreen.INVOICE_DETAIL
                         },
-                        onEditInvoice = { invoice ->
-                            viewModel.loadInvoiceForEditing(invoice)
-                            currentScreen = AppScreen.CHECKOUT
-                        },
+                        
                         onBack = { currentScreen = AppScreen.HOME }
                     )
                 }
@@ -259,6 +250,82 @@ fun GroceryInvoiceApp() {
                         onDeleteItem = viewModel::deleteInventoryItem,
                         onBack = { currentScreen = AppScreen.CHECKOUT }
                     )
+                }
+            }
+            
+            // Floating Bottom Bar Overlay
+            if (currentScreen in listOf(AppScreen.HOME, AppScreen.CUSTOMERS)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 24.dp),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Surface(
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(percent = 50),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        tonalElevation = 8.dp,
+                        shadowElevation = 8.dp,
+                        modifier = Modifier.padding(horizontal = 32.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(32.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val isHome = currentScreen == AppScreen.HOME
+                            Surface(
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(percent = 50),
+                                color = if (isHome) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                                modifier = Modifier.clickable { currentScreen = AppScreen.HOME }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Home, 
+                                        contentDescription = "Home",
+                                        tint = if (isHome) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    if (isHome) {
+                                        Text(
+                                            "Home", 
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                }
+                            }
+                            
+                            val isCust = currentScreen == AppScreen.CUSTOMERS
+                            Surface(
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(percent = 50),
+                                color = if (isCust) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                                modifier = Modifier.clickable { currentScreen = AppScreen.CUSTOMERS }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person, 
+                                        contentDescription = "Customers",
+                                        tint = if (isCust) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    if (isCust) {
+                                        Text(
+                                            "Customers", 
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

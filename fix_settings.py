@@ -1,34 +1,42 @@
 import re
 
 with open('app/src/main/java/com/example/ui/screens/SettingsScreen.kt', 'r') as f:
-    content = f.read()
+    text = f.read()
 
-content = content.replace(
-    'onUpdateStoreSettings: (name: String, address: String, phone: String, owner: String, symbol: String) -> Unit,',
-    'onUpdateStoreSettings: (name: String, address: String, phone: String, owner: String, symbol: String, swipeToDelete: Boolean) -> Unit,'
-)
+# Add imports
+imports = """import androidx.compose.ui.res.stringResource
+import com.example.R
+"""
+text = text.replace("import com.example.viewmodel.InvoiceUiState", "import com.example.viewmodel.InvoiceUiState\n" + imports)
 
-content = content.replace(
-    'var swipeToDeleteEnabled by remember { mutableStateOf(true) }',
-    'var swipeToDeleteEnabled by remember { mutableStateOf(state.swipeToDeleteEnabled) }'
-)
+# Remove Actions Group
+actions_group = """            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                SectionHeader("Actions Group")
+                
+                ListItem(
+                    headlineContent = { Text("Enable Swipe to Delete", fontWeight = FontWeight.Bold) },
+                    supportingContent = { Text("Allow swiping items to remove them from lists.", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    trailingContent = { 
+                        Switch(
+                            checked = swipeToDeleteEnabled, 
+                            onCheckedChange = { 
+                                swipeToDeleteEnabled = it
+                                onUpdateStoreSettings(storeName, storeAddress, storePhone, ownerName, it)
+                            }
+                        ) 
+                    },
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background)
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
+            }"""
 
-content = content.replace(
-    'onUpdateStoreSettings(storeName, storeAddress, storePhone, ownerName, currencySymbol)',
-    'onUpdateStoreSettings(storeName, storeAddress, storePhone, ownerName, currencySymbol, swipeToDeleteEnabled)'
-)
+if actions_group in text:
+    text = text.replace(actions_group, "")
+
+# Fix app name
+text = text.replace('Text("Material Ledger", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)', 'Text(stringResource(R.string.app_name), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)')
 
 with open('app/src/main/java/com/example/ui/screens/SettingsScreen.kt', 'w') as f:
-    f.write(content)
-
-
-with open('app/src/main/java/com/example/MainActivity.kt', 'r') as f:
-    main_content = f.read()
-
-main_content = main_content.replace(
-    'onUpdateStoreSettings = viewModel::updateStoreSettings,',
-    'onUpdateStoreSettings = { name, address, phone, owner, symbol, swipe -> viewModel.updateStoreSettings(name, address, phone, owner, symbol, swipe) },'
-)
-with open('app/src/main/java/com/example/MainActivity.kt', 'w') as f:
-    f.write(main_content)
+    f.write(text)
 

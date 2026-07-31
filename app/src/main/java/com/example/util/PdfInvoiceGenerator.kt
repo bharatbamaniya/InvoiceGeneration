@@ -30,186 +30,295 @@ object PdfInvoiceGenerator {
     fun createPdfInvoice(context: Context, invoice: Invoice): File? {
         val pdfDocument = PdfDocument()
         
-        val baseHeight = 700f
-        val itemHeight = 30f
-        val totalHeight = (baseHeight + (invoice.items.size * itemHeight)).toInt()
-        val pageWidth = 400
+        fun formatCurrency(amount: Double): String {
+            val format = java.text.NumberFormat.getNumberInstance(Locale.US)
+            format.minimumFractionDigits = 0
+            format.maximumFractionDigits = 2
+            return format.format(amount)
+        }
+        
+        val pageWidth = 420 // ISO A5 width in points
+        var estimatedHeight = 480f + (invoice.items.size * 25f)
+        val totalHeight = Math.max(595, estimatedHeight.toInt()) // ISO A5 height is 595
+        
         val pageInfo = PdfDocument.PageInfo.Builder(pageWidth, totalHeight, 1).create()
         val page = pdfDocument.startPage(pageInfo)
         val canvas = page.canvas
 
-        canvas.drawColor(Color.WHITE)
+        // Colors
+        val pageBgColor = Color.WHITE
+        val primaryColor = Color.rgb(79, 70, 229) // Indigo-600 #4F46E5
+        val primaryLight = Color.rgb(238, 242, 255) // Indigo-50
+        val textDark = Color.rgb(17, 24, 39) // Gray-900
+        val textGray = Color.rgb(107, 114, 128) // Gray-500
+        val textLight = Color.rgb(156, 163, 175) // Gray-400
+        val dividerColor = Color.rgb(229, 231, 235) // Gray-200
+        
+        canvas.drawColor(pageBgColor)
 
-        val blackPaint = Paint().apply {
-            color = Color.BLACK
+        // Typefaces
+        val sansSerif = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+        val sansSerifBold = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+
+        val titlePaint = Paint().apply {
+            color = primaryColor
+            textSize = 28f
+            typeface = sansSerifBold
+            textAlign = Paint.Align.CENTER
             isAntiAlias = true
-            typeface = Typeface.MONOSPACE
-        }
-        val grayPaint = Paint(blackPaint).apply { color = Color.DKGRAY }
-        val lightGrayPaint = Paint(blackPaint).apply { color = Color.GRAY }
-        val boldPaint = Paint(blackPaint).apply { 
-            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) 
         }
         
-        val centerPaint = Paint(blackPaint).apply { textAlign = Paint.Align.CENTER }
-        val centerBoldPaint = Paint(boldPaint).apply { textAlign = Paint.Align.CENTER; color = Color.rgb(27, 94, 32) } // #1B5E20
-        
-        val rightPaint = Paint(blackPaint).apply { textAlign = Paint.Align.RIGHT }
-        val rightBoldPaint = Paint(boldPaint).apply { textAlign = Paint.Align.RIGHT }
-        val rightGreenBoldPaint = Paint(boldPaint).apply { textAlign = Paint.Align.RIGHT; color = Color.rgb(27, 94, 32) }
-        
-        val startX = 20f
-        val colQtyX = 180f
-        val colRateX = 280f
-        val endX = pageWidth - 20f
-        val centerX = pageWidth / 2f
-        var y = 40f
-        
-        // Header
-        centerBoldPaint.textSize = 24f
-        canvas.drawText("🛒 ${invoice.storeName}", centerX, y, centerBoldPaint)
-        y += 20f
+        val addressPaint = Paint().apply {
+            color = textGray
+            textSize = 9f
+            typeface = sansSerif
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
 
-        centerPaint.textSize = 12f
-        centerPaint.color = Color.DKGRAY
+        val labelPaint = Paint().apply {
+            color = textLight
+            textSize = 8f
+            typeface = sansSerifBold
+            letterSpacing = 0.05f
+            isAntiAlias = true
+        }
+
+        val namePaint = Paint().apply {
+            color = textDark
+            textSize = 14f
+            typeface = sansSerifBold
+            isAntiAlias = true
+        }
+
+        val invNoPaint = Paint().apply {
+            color = primaryColor
+            textSize = 14f // Reduced size
+            typeface = sansSerifBold
+            textAlign = Paint.Align.RIGHT
+            isAntiAlias = true
+        }
+
+        val datePaint = Paint().apply {
+            color = textDark
+            textSize = 10f
+            typeface = sansSerif
+            textAlign = Paint.Align.RIGHT
+            isAntiAlias = true
+        }
+
+        val tableHeaderPaint = Paint().apply {
+            color = textGray
+            textSize = 9f
+            typeface = sansSerifBold
+            letterSpacing = 0.05f
+            isAntiAlias = true
+        }
+
+        val tableItemPaint = Paint().apply {
+            color = textDark
+            textSize = 10f
+            typeface = sansSerif
+            isAntiAlias = true
+        }
+        
+        val linePaint = Paint().apply { 
+            color = dividerColor
+            strokeWidth = 1f 
+        }
+
+        val margin = 30f
+        val startX = margin
+        val endX = pageWidth - margin
+        val centerX = pageWidth / 2f
+        
+        val colQtyX = 220f
+        val colRateX = 300f
+        
+        var y = 50f
+
+        // --- Header ---
+        canvas.drawText(invoice.storeName, centerX, y, titlePaint)
+        y += 18f
+        
         if (invoice.storeAddress.isNotBlank()) {
-            canvas.drawText(invoice.storeAddress, centerX, y, centerPaint)
-            y += 16f
+            canvas.drawText(invoice.storeAddress, centerX, y, addressPaint)
+            y += 12f
         }
         if (invoice.storePhone.isNotBlank()) {
-            canvas.drawText("Phone: ${invoice.storePhone}", centerX, y, centerPaint)
+            canvas.drawText(invoice.storePhone, centerX, y, addressPaint)
             y += 20f
+        } else {
+            y += 8f
         }
+
+        canvas.drawLine(startX, y, endX, y, linePaint)
+        y += 20f
+
+        // --- Billed To & Invoice details ---
+        val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+        val dateStr = dateFormat.format(Date(invoice.dateMillis))
+        val custName = if (invoice.customerName.isBlank()) "Valued Customer" else invoice.customerName
+
+        canvas.drawText("BILLED TO", startX, y, labelPaint)
+        canvas.drawText("INV-${invoice.invoiceId.takeLast(4).padStart(4, '0')}", endX, y, invNoPaint)
+        y += 18f
+        
+        canvas.drawText(custName, startX, y, namePaint)
+        canvas.drawText(dateStr, endX, y, datePaint)
+        y += 14f
+        
+        if (invoice.customerPhone.isNotBlank()) {
+            canvas.drawText(invoice.customerPhone, startX, y, Paint(addressPaint).apply { textAlign = Paint.Align.LEFT })
+        }
+        y += 24f
+
+        // --- Table Header ---
+        canvas.drawLine(startX, y, endX, y, linePaint)
+        y += 14f
+        
+        canvas.drawText("ITEM", startX, y, tableHeaderPaint)
+        canvas.drawText("QTY", colQtyX, y, Paint(tableHeaderPaint).apply { textAlign = Paint.Align.RIGHT })
+        canvas.drawText("RATE", colRateX, y, Paint(tableHeaderPaint).apply { textAlign = Paint.Align.RIGHT })
+        canvas.drawText("AMOUNT", endX, y, Paint(tableHeaderPaint).apply { textAlign = Paint.Align.RIGHT })
         
         y += 10f
-        val linePaint = Paint().apply { color = Color.LTGRAY; strokeWidth = 1f }
-        canvas.drawLine(startX, y, endX, y, linePaint)
-        y += 20f
-        
-        // Customer & Invoice Metadata
-        lightGrayPaint.textSize = 10f
-        boldPaint.textSize = 10f
-        rightPaint.textSize = 10f
-        
-        canvas.drawText("CUSTOMER:", startX, y, boldPaint)
-        canvas.drawText("INVOICE NO:", endX, y, Paint(rightPaint).apply { color = Color.GRAY; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) })
-        y += 16f
-        
-        blackPaint.textSize = 14f
-        boldPaint.textSize = 14f
-        rightGreenBoldPaint.textSize = 14f
-        
-        val custName = if (invoice.customerName.isNotBlank()) invoice.customerName else "Walk-in Customer"
-        canvas.drawText(custName, startX, y, boldPaint)
-        canvas.drawText("#${invoice.invoiceId}", endX, y, rightGreenBoldPaint)
-        
-        y += 16f
-        val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.US)
-        val rightGrayPaint = Paint(rightPaint).apply { color = Color.DKGRAY; textSize = 11f }
-        canvas.drawText(sdf.format(Date(invoice.dateMillis)), endX, y, rightGrayPaint)
-        
-        y += 20f
         canvas.drawLine(startX, y, endX, y, linePaint)
         y += 24f
-        
-        // Table Header
-        val headerPaint = Paint(boldPaint).apply { color = Color.GRAY; textSize = 11f }
-        canvas.drawText("ITEM", startX, y, headerPaint)
-        canvas.drawText("QTY", colQtyX, y, Paint(headerPaint).apply{textAlign=Paint.Align.CENTER})
-        canvas.drawText("RATE", colRateX, y, Paint(headerPaint).apply{textAlign=Paint.Align.CENTER})
-        canvas.drawText("PRICE", endX, y, Paint(headerPaint).apply{textAlign=Paint.Align.RIGHT})
-        
-        y += 16f
-        canvas.drawLine(startX, y, endX, y, linePaint)
-        y += 24f
-        
-        // Items
-        blackPaint.textSize = 13f
-        rightBoldPaint.textSize = 13f
-        
+
+        // --- Table Items ---
+        val sym = invoice.currencySymbol
         invoice.items.forEach { item ->
-            val itemName = if (item.item.name.length > 15) item.item.name.substring(0, 13) + ".." else item.item.name
-            canvas.drawText(itemName, startX, y, Paint(blackPaint).apply{ typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)})
+            canvas.drawText(item.item.name, startX, y, tableItemPaint)
             
-            val qtyVal = item.quantity
-            val qtyStr = if (qtyVal % 1.0 == 0.0) qtyVal.toInt().toString() else qtyVal.toString()
-            canvas.drawText(qtyStr, colQtyX, y, Paint(blackPaint).apply{textAlign=Paint.Align.CENTER; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)})
+            val qtyStr = if (item.quantity % 1.0 == 0.0) "${item.quantity.toInt()}" else "${item.quantity}"
+            val rateStr = "$sym${formatCurrency(item.unitPrice)}/${item.item.unit}"
             
-            val rateStr = String.format(Locale.US, "%.2f/%s", item.unitPrice, item.item.unit)
-            canvas.drawText(rateStr, colRateX, y, Paint(blackPaint).apply{textAlign=Paint.Align.CENTER; color=Color.DKGRAY; textSize=11f})
+            canvas.drawText(qtyStr, colQtyX, y, Paint(tableItemPaint).apply { textAlign = Paint.Align.RIGHT })
+            canvas.drawText(rateStr, colRateX, y, Paint(tableItemPaint).apply { textAlign = Paint.Align.RIGHT })
+            canvas.drawText("$sym${formatCurrency(item.totalPrice)}", endX, y, Paint(tableItemPaint).apply { textAlign = Paint.Align.RIGHT })
             
-            val totalStr = String.format(Locale.US, "%s%.2f", invoice.currencySymbol, item.totalPrice)
-            canvas.drawText(totalStr, endX, y, rightBoldPaint)
             y += 24f
         }
         
-        y += 10f
+        y += 6f
         canvas.drawLine(startX, y, endX, y, linePaint)
-        y += 30f
+        y += 24f
+
+        // --- Summary ---
+        val summaryLabelPaint = Paint(tableItemPaint).apply { 
+            color = textGray 
+            textAlign = Paint.Align.LEFT
+        }
+        val summaryValuePaint = Paint(tableItemPaint).apply { 
+            typeface = sansSerifBold
+            textAlign = Paint.Align.RIGHT
+        }
         
-        // Totals
-        val normalText = Paint(blackPaint).apply { color = Color.DKGRAY; textSize = 13f }
-        val rightNormalText = Paint(rightPaint).apply { color = Color.DKGRAY; textSize = 13f }
+        val summaryX = 180f
         
-        canvas.drawText("Bill Amount", startX, y, normalText)
-        canvas.drawText(String.format(Locale.US, "%s%.2f", invoice.currencySymbol, invoice.billAmount), endX, y, rightNormalText)
-        
+        canvas.drawText("Bill Amount", summaryX, y, summaryLabelPaint)
+        canvas.drawText("$sym${formatCurrency(invoice.billAmount)}", endX, y, summaryValuePaint)
         y += 24f
         
         if (invoice.previousOutstanding > 0) {
-            canvas.drawText("Previous Outstanding", startX, y, normalText)
-            canvas.drawText(String.format(Locale.US, "+%s%.2f", invoice.currencySymbol, invoice.previousOutstanding), endX, y, rightNormalText)
+            canvas.drawText("Prev. Outstanding", summaryX, y, summaryLabelPaint)
+            canvas.drawText("+$sym${formatCurrency(invoice.previousOutstanding)}", endX, y, Paint(summaryValuePaint).apply { color = Color.rgb(220, 38, 38) })
             y += 24f
         }
         
         if (invoice.cashReceived > 0) {
-            canvas.drawText("Cash Received", startX, y, Paint(normalText).apply{color=Color.rgb(198,40,40)})
-            canvas.drawText(String.format(Locale.US, "-%s%.2f", invoice.currencySymbol, invoice.cashReceived), endX, y, Paint(rightNormalText).apply{color=Color.rgb(198,40,40)})
+            canvas.drawText("Cash Received", summaryX, y, summaryLabelPaint)
+            canvas.drawText("-$sym${formatCurrency(invoice.cashReceived)}", endX, y, Paint(summaryValuePaint).apply { color = Color.rgb(22, 163, 74) })
             y += 24f
         }
         
-        y += 10f
-        // Box for Total Balance
-        val rectPaint = Paint().apply { color = Color.rgb(232, 245, 233); style = Paint.Style.FILL }
-        canvas.drawRoundRect(startX, y-20f, endX, y+20f, 8f, 8f, rectPaint)
+        // --- Total Balance Box ---
+        y += 8f
+        val boxHeight = 44f
+        val boxRect = android.graphics.RectF(summaryX - 8f, y, endX + 8f, y + boxHeight)
         
-        val totalLabelPaint = Paint(boldPaint).apply { color = Color.rgb(27, 94, 32); textSize = 14f }
-        val totalValuePaint = Paint(rightBoldPaint).apply { color = Color.rgb(27, 94, 32); textSize = 18f }
-        canvas.drawText("TOTAL BALANCE", startX + 10f, y + 6f, totalLabelPaint)
-        canvas.drawText(String.format(Locale.US, "%s%.2f", invoice.currencySymbol, invoice.totalBalance), endX - 10f, y + 6f, totalValuePaint)
+        val boxPaint = Paint().apply {
+            color = primaryLight
+            isAntiAlias = true
+        }
+        canvas.drawRoundRect(boxRect, 8f, 8f, boxPaint)
         
-        y += 40f
+        val totalLabelPaint = Paint().apply {
+            color = textDark
+            textSize = 12f
+            typeface = sansSerifBold
+            textAlign = Paint.Align.LEFT
+            isAntiAlias = true
+        }
+        val totalValPaint = Paint(totalLabelPaint).apply { 
+            color = primaryColor
+            textSize = 18f
+            typeface = sansSerifBold
+            textAlign = Paint.Align.RIGHT
+        }
         
-        val footerPaint = Paint(centerPaint).apply { color = Color.GRAY; textSize = 11f }
-        canvas.drawText("Thank you for shopping at ${invoice.storeName}! 🙏", centerX, y, footerPaint)
+        val totalY = y + (boxHeight / 2) + 5f
+        canvas.drawText("Total Balance", summaryX, totalY, totalLabelPaint)
+        canvas.drawText("$sym${formatCurrency(invoice.totalBalance)}", endX, totalY, totalValPaint)
         
-        y += 50f
-        // Signature
-        val sigTitle = Paint(rightPaint).apply { color = Color.DKGRAY; textSize = 11f }
-        canvas.drawText("Authorized Signatory", endX, y, sigTitle)
-        y += 20f
-        val ownerSignature = if (invoice.ownerName.isNotBlank()) invoice.ownerName else "Owner Name"
-        canvas.drawText(ownerSignature, endX, y, Paint(rightBoldPaint).apply { textSize = 13f })
+        // --- Footer ---
+        val thankYouPaint = Paint().apply {
+            color = textGray
+            textSize = 12f
+            typeface = sansSerifBold
+            textAlign = Paint.Align.LEFT
+            isAntiAlias = true
+        }
+        val sigNamePaint = Paint().apply {
+            color = textDark
+            textSize = 10f
+            typeface = sansSerifBold
+            textAlign = Paint.Align.RIGHT
+            isAntiAlias = true
+        }
+        val sigTitlePaint = Paint(sigNamePaint).apply {
+            textSize = 8f
+            typeface = sansSerif
+            color = textGray
+        }
         
+        val bottomY = totalHeight - 20f
+        val bottomPaint = Paint().apply {
+            color = textLight
+            textSize = 7f
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.ITALIC)
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+        canvas.drawText("This is a computer-generated invoice, does not require a physical signature", centerX, bottomY, bottomPaint)
+
+        val footerY = bottomY - 35f
+        
+        if (y + boxHeight + 40f < footerY - 20f) {
+            canvas.drawLine(startX, footerY - 30f, endX, footerY - 30f, linePaint)
+        }
+        
+        canvas.drawText("Thank you for shopping with us!", startX, footerY - 5f, thankYouPaint)
+        
+        val ownerStr = if (invoice.ownerName.isNotBlank()) invoice.ownerName else "Store Owner"
+        canvas.drawLine(endX - 90f, footerY - 15f, endX, footerY - 15f, linePaint)
+        canvas.drawText(ownerStr, endX, footerY - 1f, sigNamePaint)
+        canvas.drawText("Authorized Signatory", endX, footerY + 8f, sigTitlePaint)
+
         pdfDocument.finishPage(page)
-        
-        val pdfFile = File(context.cacheDir, "Invoice_${invoice.invoiceId}.pdf")
-        return try {
-            val fos = FileOutputStream(pdfFile)
-            pdfDocument.writeTo(fos)
-            fos.close()
+
+        try {
+            val pdfFile = File(context.cacheDir, "Invoice_${invoice.invoiceId}.pdf")
+            pdfDocument.writeTo(FileOutputStream(pdfFile))
             pdfDocument.close()
-            pdfFile
+            return pdfFile
         } catch (e: Exception) {
             e.printStackTrace()
             pdfDocument.close()
-            null
+            return null
         }
     }
-
-    /**
-     * Get a Content Uri for sharing via FileProvider
-     */
     fun getPdfUri(context: Context, pdfFile: File): Uri {
         return FileProvider.getUriForFile(
             context,

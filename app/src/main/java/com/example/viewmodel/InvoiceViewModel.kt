@@ -60,7 +60,15 @@ class InvoiceViewModel(private val repository: GroceryRepository) : ViewModel() 
         GroceryItem("v9", "Cucumber", 30.0, "kg", "🥒"),
         GroceryItem("v10", "Capsicum", 60.0, "kg", "🫑"),
         GroceryItem("v11", "Eggplant", 40.0, "kg", "🍆"),
-        GroceryItem("v12", "Garlic", 120.0, "kg", "🧄")
+        GroceryItem("v12", "Garlic", 120.0, "kg", "🧄"),
+        GroceryItem("v13", "Ginger", 150.0, "kg", "🫚"),
+        GroceryItem("v14", "Green Chili", 100.0, "kg", "🌶️"),
+        GroceryItem("v15", "Coriander", 15.0, "bunch", "🌿"),
+        GroceryItem("v16", "Mint", 10.0, "bunch", "🌿"),
+        GroceryItem("v17", "Radish", 20.0, "kg", "🥕"),
+        GroceryItem("v18", "Bitter Gourd", 50.0, "kg", "🥒"),
+        GroceryItem("v19", "Bottle Gourd", 25.0, "pc", "🥒"),
+        GroceryItem("v20", "Pumpkin", 40.0, "kg", "🎃")
     )
 
     init {
@@ -93,7 +101,12 @@ class InvoiceViewModel(private val repository: GroceryRepository) : ViewModel() 
         }
         viewModelScope.launch {
             repository.allItems.collect { items ->
-                _uiState.update { it.copy(inventoryItems = if (items.isEmpty()) defaultVeggieCatalog else items) }
+                if (items.isEmpty()) {
+                    defaultVeggieCatalog.forEach { repository.insertItem(it) }
+                    _uiState.update { it.copy(inventoryItems = defaultVeggieCatalog) }
+                } else {
+                    _uiState.update { it.copy(inventoryItems = items) }
+                }
             }
         }
         viewModelScope.launch {
@@ -103,6 +116,12 @@ class InvoiceViewModel(private val repository: GroceryRepository) : ViewModel() 
         }
     }
 
+
+    fun syncData() {
+        viewModelScope.launch {
+            repository.syncFromFirebase()
+        }
+    }
 
     fun login(storeUid: String) {
         if (storeUid.isNotBlank()) {
@@ -269,6 +288,7 @@ class InvoiceViewModel(private val repository: GroceryRepository) : ViewModel() 
             price = price,
             unit = unit,
             iconEmoji = "📦"
+
         )
 
         viewModelScope.launch {
@@ -280,13 +300,14 @@ class InvoiceViewModel(private val repository: GroceryRepository) : ViewModel() 
     /**
      * Inventory management
      */
-    fun addInventoryItem(name: String, price: Double, unit: String) {
+    fun addInventoryItem(name: String, price: Double, unit: String, iconEmoji: String = "") {
         val newItem = GroceryItem(
             id = "item_${System.currentTimeMillis()}",
             name = name.trim(),
             price = price,
             unit = unit,
-            iconEmoji = "📦"
+            iconEmoji = iconEmoji,
+
         )
         viewModelScope.launch {
             repository.insertItem(newItem)
