@@ -44,6 +44,7 @@ fun InvoiceDetailScreen(
     val dateString = dateFormat.format(Date(invoice.dateMillis))
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("Invoice Preview", fontWeight = FontWeight.Bold) },
@@ -58,7 +59,7 @@ fun InvoiceDetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )

@@ -85,6 +85,7 @@ fun CheckoutScreen(
     val customerName = state.customers.find { it.id == state.selectedCustomerId }?.name ?: "New Invoice"
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { 
@@ -99,7 +100,7 @@ fun CheckoutScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
@@ -321,6 +322,7 @@ fun CheckoutScreen(
 }
 
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun SimpleWheelPicker(
     value: Float,
@@ -328,9 +330,12 @@ fun SimpleWheelPicker(
     onValueChange: (Float) -> Unit,
     format: (Float) -> String
 ) {
-    val currentIndex = remember(value, range) { 
-        var closestIdx = 0
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    
+    // Find initial index
+    val initialIndex = remember(value, range) {
         var minDiff = Float.MAX_VALUE
+        var closestIdx = 0
         for (i in range.indices) {
             val diff = kotlin.math.abs(range[i] - value)
             if (diff < minDiff) {
@@ -340,57 +345,84 @@ fun SimpleWheelPicker(
         }
         closestIdx
     }
-    var dragOffset by remember { mutableStateOf(0f) }
-    val itemHeightPx = with(androidx.compose.ui.platform.LocalDensity.current) { 48.dp.toPx() }
     
+    LaunchedEffect(initialIndex, range) {
+        listState.scrollToItem(initialIndex)
+    }
+    
+    // Track center item
+    val centerIndex by remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val visibleItemsInfo = layoutInfo.visibleItemsInfo
+            if (visibleItemsInfo.isEmpty()) {
+                -1
+            } else {
+                val viewportHeight = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
+                val centerLine = layoutInfo.viewportStartOffset + viewportHeight / 2
+                var closestItem = visibleItemsInfo.first()
+                var minDistance = Int.MAX_VALUE
+                
+                for (item in visibleItemsInfo) {
+                    val itemCenter = item.offset + item.size / 2
+                    val distance = kotlin.math.abs(itemCenter - centerLine)
+                    if (distance < minDistance) {
+                        minDistance = distance
+                        closestItem = item
+                    }
+                }
+                closestItem.index
+            }
+        }
+    }
+    
+    // Update value when dragging stops and center item is settled
+    LaunchedEffect(listState.isScrollInProgress, centerIndex) {
+        if (!listState.isScrollInProgress && centerIndex in range.indices) {
+            onValueChange(range[centerIndex])
+        }
+    }
+
     Box(
         modifier = Modifier
             .height(240.dp)
-            .fillMaxWidth()
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onDragEnd = { dragOffset = 0f },
-                    onDragCancel = { dragOffset = 0f }
-                ) { change, dragAmount ->
-                    change.consume()
-                    dragOffset += dragAmount
-                    if (kotlin.math.abs(dragOffset) > itemHeightPx) {
-                        val steps = (dragOffset / itemHeightPx).toInt()
-                        dragOffset -= steps * itemHeightPx
-                        val newIndex = (currentIndex - steps).coerceIn(0, range.size - 1)
-                        if (newIndex != currentIndex) {
-                            onValueChange(range[newIndex])
-                        }
-                    }
-                }
-            },
+            .fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            for (offset in -2..2) {
-                val index = currentIndex + offset
-                if (index in range.indices) {
-                    val alpha = 1f - (kotlin.math.abs(offset) * 0.3f)
-                    val fontSize = if (offset == 0) 32.sp else 24.sp
-                    val fontWeight = if (offset == 0) FontWeight.Bold else FontWeight.Normal
+        // Highlight selection area
+        Surface(
+            modifier = Modifier.fillMaxWidth(0.5f).height(48.dp),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+            shape = RoundedCornerShape(8.dp)
+        ) {}
+        
+        androidx.compose.foundation.lazy.LazyColumn(
+            state = listState,
+            flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(lazyListState = listState),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(vertical = 96.dp) // (240 - 48) / 2
+        ) {
+            items(range.size) { index ->
+                val isSelected = index == centerIndex
+                val alpha = if (isSelected) 1f else 0.4f
+                val fontSize = if (isSelected) 28.sp else 20.sp
+                val fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
                         text = format(range[index]),
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
                         fontSize = fontSize,
-                        fontWeight = fontWeight,
-                        modifier = Modifier.height(48.dp).wrapContentHeight()
+                        fontWeight = fontWeight
                     )
-                } else {
-                    Spacer(modifier = Modifier.height(48.dp))
                 }
             }
         }
-        
-        Surface(
-            modifier = Modifier.fillMaxWidth(0.5f).height(48.dp),
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-            shape = RoundedCornerShape(8.dp)
-        ) {}
     }
 }
 
@@ -531,7 +563,8 @@ fun ItemConfigDialog(
                         value = priceStr,
                         onValueChange = { priceStr = it },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.width(80.dp).height(48.dp),
+                        modifier = Modifier.width(100.dp),
+                        singleLine = true,
                         textStyle = LocalTextStyle.current.copy(fontWeight = FontWeight.Bold),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color.Transparent,
@@ -587,7 +620,7 @@ fun CheckoutSummarySheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(

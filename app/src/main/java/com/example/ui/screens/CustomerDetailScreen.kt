@@ -9,6 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,13 +32,15 @@ fun CustomerDetailScreen(
     currencySymbol: String,
     onBack: () -> Unit,
     onNewInvoice: (Customer) -> Unit,
-    onSettleBalance: (Customer, Double) -> Unit
+    onSettleBalance: (Customer, Double) -> Unit,
+    onEditInvoice: (Invoice) -> Unit
 ) {
     val customerInvoices = invoices.filter { it.customerId == customer.id }.sortedByDescending { it.dateMillis }
     var showSettleDialog by remember { mutableStateOf(false) }
     var settleAmountStr by remember { mutableStateOf(customer.balance.toString()) }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(customer.name, fontWeight = FontWeight.Bold) },
@@ -47,7 +50,7 @@ fun CustomerDetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
@@ -192,11 +195,16 @@ fun CustomerDetailScreen(
                                     Text(dateString, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 
-                                Text(
-                                    "+ $currencySymbol${String.format(Locale.US, "%.2f", item.billAmount)}",
-                                    color = MaterialTheme.colorScheme.error,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        "+ $currencySymbol${String.format(Locale.US, "%.2f", item.billAmount)}",
+                                        color = MaterialTheme.colorScheme.error,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    IconButton(onClick = { onEditInvoice(item) }, modifier = Modifier.size(32.dp)) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Edit Invoice", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
                             }
                         }
                     } else if (item is Payment) {

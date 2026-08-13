@@ -1,6 +1,7 @@
 package com.example
 
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.Color
@@ -81,11 +82,25 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f),
+                                    MaterialTheme.colorScheme.background
+                                )
+                            )
+                        )
+                ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = Color.Transparent
                 ) {
                     GroceryInvoiceApp()
+                }
                 }
             }
         }
@@ -171,6 +186,10 @@ fun GroceryInvoiceApp() {
                                 currentScreen = AppScreen.CHECKOUT 
                             },
                             onSettleBalance = { cust, amount -> viewModel.settleCustomerBalance(cust.id, amount, "Settled from detail") },
+                            onEditInvoice = { invoice -> 
+                                viewModel.loadInvoiceForEditing(invoice)
+                                currentScreen = AppScreen.CHECKOUT
+                            }
                             
                         )
                     } else {

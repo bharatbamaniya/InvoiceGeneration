@@ -1,4 +1,9 @@
-package com.example.ui.screens
+import re
+
+with open('app/src/main/java/com/example/ui/screens/AuthScreen.kt', 'r') as f:
+    text = f.read()
+
+new_content = """package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -52,7 +57,7 @@ fun AuthScreen(
         label = "floating_icon"
     )
 
-    Surface(modifier = Modifier.fillMaxSize(), color = androidx.compose.ui.graphics.Color.Transparent) {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -175,3 +180,8 @@ fun AuthScreen(
         }
     }
 }
+"""
+
+with open('app/src/main/java/com/example/ui/screens/AuthScreen.kt', 'w') as f:
+    f.write(new_content)
+

@@ -46,8 +46,9 @@ fun CustomersScreen(
     }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
+            Column(modifier = Modifier) {
                 TopAppBar(
                     title = { 
                         Column {
@@ -56,7 +57,7 @@ fun CustomersScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
+                        containerColor = androidx.compose.ui.graphics.Color.Transparent,
                         titleContentColor = MaterialTheme.colorScheme.onBackground
                     )
                 )
@@ -150,14 +151,6 @@ fun CustomersScreen(
                 }
             }
             
-            // Filter Chips
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = selectedFilter == "All", onClick = { selectedFilter = "All" }, label = { Text("All") })
-                    FilterChip(selected = selectedFilter == "With Balance", onClick = { selectedFilter = "With Balance" }, label = { Text("With Balance") })
-                    FilterChip(selected = selectedFilter == "Recent", onClick = { selectedFilter = "Recent" }, label = { Text("Recent") })
-                }
-            }
             
             // Customer Directory Title
             item {

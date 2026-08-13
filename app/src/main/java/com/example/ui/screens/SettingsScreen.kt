@@ -45,6 +45,7 @@ fun SettingsScreen(
     val context = LocalContext.current
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("Settings", fontWeight = FontWeight.Bold) },
@@ -54,7 +55,7 @@ fun SettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
@@ -86,7 +87,7 @@ fun SettingsScreen(
                     headlineContent = { Text("Logout", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error) },
                     leadingContent = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = MaterialTheme.colorScheme.error) },
                     modifier = Modifier.clickable { onLogout() },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background)
+                    colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
                 )
             }
             
@@ -202,6 +203,6 @@ fun SettingsItem(title: String, subtitle: String, trailingIcon: @Composable () -
         supportingContent = { Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant) },
         trailingContent = trailingIcon,
         modifier = Modifier.clickable { onClick() },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background)
+        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
     )
 }

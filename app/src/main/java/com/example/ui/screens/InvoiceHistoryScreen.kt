@@ -33,6 +33,7 @@ fun InvoiceHistoryScreen(
     var isSearchActive by remember { mutableStateOf(false) }
     val filteredInvoices = if (searchQuery.isEmpty()) invoices else invoices.filter { it.customerName.contains(searchQuery, ignoreCase = true) || it.invoiceId.toString().contains(searchQuery) }
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { 
@@ -59,7 +60,7 @@ fun InvoiceHistoryScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )

@@ -1,10 +1,10 @@
-with open('app/src/main/java/com/example/ui/screens/HomeScreen.kt', 'r') as f:
-    code = f.read()
+import re
 
-code = code.replace(
-    'val receivedToday = todayInvoices.sumOf { it.billAmount - (it.totalBalance - it.prevOutstanding) }',
-    'val receivedToday = todayInvoices.sumOf { it.billAmount - (it.totalBalance - it.previousOutstanding) }'
-)
+with open('app/src/main/java/com/example/ui/screens/HomeScreen.kt', 'r') as f:
+    text = f.read()
+
+# I will add the Box directly in the HomeScreen Composable
 
 with open('app/src/main/java/com/example/ui/screens/HomeScreen.kt', 'w') as f:
-    f.write(code)
+    f.write(text)
+

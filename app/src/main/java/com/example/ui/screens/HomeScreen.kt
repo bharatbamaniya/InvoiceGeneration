@@ -92,8 +92,25 @@ fun HomeScreen(
     }
 
 
+
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.background
+                    )
+                )
+            )
+    ) {
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
+
             TopAppBar(
                 title = { 
                     Text(
@@ -114,7 +131,7 @@ fun HomeScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.onBackground,
                     actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -305,6 +322,7 @@ fun HomeScreen(
             }
         }
     }
+}
 }
 
 @Composable

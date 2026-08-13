@@ -46,6 +46,7 @@ fun ManageItemsScreen(
     val filteredItems = items.filter { it.name.contains(searchQuery, ignoreCase = true) }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { 
@@ -60,7 +61,7 @@ fun ManageItemsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
